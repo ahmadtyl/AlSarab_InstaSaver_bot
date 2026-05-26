@@ -1,41 +1,65 @@
 import telebot
+import os
+import yt_dlp
 from flask import Flask
 from threading import Thread
-import os
+from supabase import create_client
 
-# 1. الإعدادات الأساسية
-TOKEN = os.environ.get('BOT_TOKEN') # سنضع التوكين في Render لاحقاً
+# الإعدادات
+TOKEN = os.environ.get('BOT_TOKEN')
+SUPABASE_URL = os.environ.get('SUPABASE_URL')
+SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 CHANNEL_ID = "@your_channel_username" # ضع يوزر قناتك هنا
+
 bot = telebot.TeleBot(TOKEN)
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 app = Flask(__name__)
 
-# 2. إعداد UptimeRobot (نقطة الاتصال)
-@app.route('/')
-def home():
-    return "Bot is alive!"
-
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
-# 3. دالة التحقق من الاشتراك
+# التحقق من الاشتراك
 def is_subscribed(user_id):
     try:
         member = bot.get_chat_member(CHANNEL_ID, user_id)
-        # الحالات التي تعني أن المستخدم مشترك
         return member.status in ['member', 'administrator', 'creator']
     except:
         return False
 
-# 4. أوامر البوت
+# أمر البدء
 @bot.message_handler(commands=['start'])
 def start(message):
     if is_subscribed(message.from_user.id):
-        bot.reply_to(message, "أهلاً بك في Al-Sarab | InstaSaver!\nأرسل رابط فيديو إنستقرام للبدء.")
+        # تسجيل المستخدم في القاعدة
+        try:
+            supabase.table("users").insert({"user_id": message.from_user.id, "username": message.from_user.username}).execute()
+        except:
+            pass
+        bot.reply_to(message, "أهلاً بك! أرسل رابط فيديو إنستقرام (Reels) وسأقوم بتحميله لك.")
     else:
-        bot.reply_to(message, f"عذراً، يجب عليك الاشتراك في قناتنا أولاً لاستخدام البوت:\n{CHANNEL_ID}")
+        bot.reply_to(message, f"عذراً، يجب عليك الاشتراك في القناة أولاً للوصول للبوت:\n{CHANNEL_ID}")
 
-# 5. تشغيل البوت مع الويب سيرفر
+# استقبال الروابط وتحميلها
+@bot.message_handler(func=lambda message: "instagram.com" in message.text)
+def handle_link(message):
+    if not is_subscribed(message.from_user.id):
+        bot.reply_to(message, "يرجى الاشتراك في القناة أولاً لاستخدام البوت.")
+        return
+    
+    bot.reply_to(message, "جاري التحميل... يرجى الانتظار.")
+    try:
+        # كود التحميل البسيط
+        url = message.text
+        ydl_opts = {'format': 'best', 'outtmpl': 'video.mp4'}
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([url])
+        
+        with open('video.mp4', 'rb') as video:
+            bot.send_video(message.chat.id, video)
+    except Exception as e:
+        bot.reply_to(message, "حدث خطأ أثناء التحميل، تأكد من صحة الرابط.")
+
+# تشغيل البوت والويب سيرفر
+@app.route('/')
+def home(): return "Bot is running"
+
 if __name__ == "__main__":
-    t = Thread(target=run)
-    t.start()
+    Thread(target=lambda: app.run(host='0.0.0.0', port=8080)).start()
     bot.polling(none_stop=True)
