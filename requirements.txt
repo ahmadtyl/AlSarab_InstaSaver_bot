@@ -1,4 +1,4 @@
 pyTelegramBotAPI
 flask
 yt-dlp
-
+supabase
