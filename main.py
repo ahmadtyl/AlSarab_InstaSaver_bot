@@ -1,8 +1,8 @@
 import telebot
 import os
 import yt_dlp
-from flask import Flask
-from threading import Thread
+import flask
+from flask import Flask, request
 from supabase import create_client
 from telebot import types
 
@@ -47,23 +47,19 @@ def send_welcome(message):
         "بوت متخصص في تحميل فيديوهات والريلز من إنستقرام بجودة عالية وسرعة فائقة.\n\n"
         "اضغط على الزر أدناه للبدء."
     )
-    
     bot.reply_to(message, welcome_text, reply_markup=markup, parse_mode="Markdown")
 
 # --- معالجة الأزرار ---
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
     bot.answer_callback_query(call.id)
-    
     if call.data == "start_bot":
         show_subscription_menu(call.message)
-        
     elif call.data == "check_sub":
         if is_subscribed(call.from_user.id):
             bot.send_message(call.message.chat.id, "✅ **أنت مشترك بالفعل!**\nأرسل رابط الفيديو الآن للتحميل.")
         else:
             show_subscription_menu(call.message, "⚠️ **عذراً، لم تشترك بعد.**\nاشترك في القناة ثم اضغط على التحقق.")
-            
     elif call.data == "count_users":
         try:
             users_data = supabase.table("users").select("user_id").execute()
@@ -71,7 +67,6 @@ def callback_handler(call):
             bot.send_message(call.message.chat.id, f"📊 عدد المشتركين في البوت: {count}")
         except Exception as e:
             bot.send_message(call.message.chat.id, f"خطأ في الوصول للقاعدة: {e}")
-
     elif call.data == "broadcast":
         msg = bot.send_message(call.message.chat.id, "أرسل رسالة الإذاعة:")
         bot.register_next_step_handler(msg, perform_broadcast)
@@ -88,7 +83,6 @@ def handle_link(message):
     if not is_subscribed(message.from_user.id):
         show_subscription_menu(message, "⚠️ **يجب الاشتراك في القناة أولاً لتتمكن من التحميل!**")
         return
-    
     bot.reply_to(message, "📥 **جاري المعالجة...**")
     try:
         ydl_opts = {'format': 'best', 'outtmpl': 'video.mp4'}
@@ -116,11 +110,18 @@ def perform_broadcast(message):
         except: pass
     bot.reply_to(message, f"✅ تم الإرسال لـ {count} مستخدم.")
 
+# --- Webhook & Flask ---
 @app.route('/')
 def home(): return "Bot is Active"
 
+@app.route('/' + TOKEN, methods=['POST'])
+def getMessage():
+    json_string = request.get_data().decode('utf-8')
+    update = types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return "!", 200
+
 if __name__ == "__main__":
-    Thread(target=lambda: app.run(host='0.0.0.0', port=8080)).start()
     bot.remove_webhook()
-    print("--- البوت يعمل الآن ---")
-    bot.infinity_polling(skip_pending=True)
+    bot.set_webhook(url="https://alsarabinstasaver.onrender.com/" + TOKEN)
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
