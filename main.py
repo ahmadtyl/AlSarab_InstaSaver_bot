@@ -27,14 +27,12 @@ def is_subscribed(user_id):
 
 def register_user(message):
     try:
-        # إضافة سجل أو تحديثه
-        response = supabase.table("users").upsert({
+        supabase.table("users").upsert({
             "user_id": message.from_user.id, 
             "username": message.from_user.username or "none"
         }).execute()
-        print(f"DEBUG: تم تسجيل المستخدم {message.from_user.id} بنجاح.")
     except Exception as e:
-        print(f"DEBUG: خطأ في التسجيل في قاعدة البيانات: {e}")
+        print(f"DEBUG: خطأ في التسجيل: {e}")
 
 # --- الأوامر الأساسية ---
 @bot.message_handler(commands=['start'])
@@ -42,11 +40,15 @@ def send_welcome(message):
     register_user(message)
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton("🚀 ابدأ الآن", callback_data="start_bot"))
-    bot.reply_to(message, 
-                 "👋 **أهلاً بك في بوت تحميل إنستقرام!**\n\n"
-                 "بوت متخصص في تحميل الريلز والفيديوهات بسرعة عالية.\n"
-                 "اضغط على الزر أدناه للبدء.", 
-                 reply_markup=markup, parse_mode="Markdown")
+    
+    welcome_text = (
+        f"👋 أهلاً بك يا {message.from_user.first_name} في بوت:\n\n"
+        "✨ **Al-sarab | السراب** ✨\n\n"
+        "بوت متخصص في تحميل فيديوهات والريلز من إنستقرام بجودة عالية وسرعة فائقة.\n\n"
+        "اضغط على الزر أدناه للبدء."
+    )
+    
+    bot.reply_to(message, welcome_text, reply_markup=markup, parse_mode="Markdown")
 
 # --- معالجة الأزرار ---
 @bot.callback_query_handler(func=lambda call: True)
@@ -66,7 +68,7 @@ def callback_handler(call):
         try:
             users_data = supabase.table("users").select("user_id").execute()
             count = len(users_data.data)
-            bot.send_message(call.message.chat.id, f"📊 عدد المستخدمين المسجلين: {count}")
+            bot.send_message(call.message.chat.id, f"📊 عدد المشتركين في البوت: {count}")
         except Exception as e:
             bot.send_message(call.message.chat.id, f"خطأ في الوصول للقاعدة: {e}")
 
