@@ -11,8 +11,7 @@ TOKEN = os.environ.get('BOT_TOKEN')
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 CHANNEL_ID = os.environ.get('CHANNEL_ID')
-# سحب رابط القناة من متغيرات البيئة في Render
-CHANNEL_URL = os.environ.get('CHANNEL_URL', 'https://t.me/your_default_channel') 
+CHANNEL_URL = os.environ.get('CHANNEL_URL')
 ADMIN_ID = 8469650487 
 
 bot = telebot.TeleBot(TOKEN)
@@ -55,7 +54,6 @@ def perform_broadcast(message):
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     markup = types.InlineKeyboardMarkup()
-    # استخدام المتغير الذي تم تعريفه في الأعلى
     markup.add(types.InlineKeyboardButton("📢 اشترك بالقناة", url=CHANNEL_URL))
     markup.add(types.InlineKeyboardButton("👨‍💻 تواصل مع المطور", url="https://t.me/trweeed"))
     
@@ -70,7 +68,9 @@ def send_welcome(message):
 @bot.message_handler(func=lambda message: "instagram.com" in message.text)
 def handle_link(message):
     if not is_subscribed(message.from_user.id):
-        bot.reply_to(message, "⚠️ يجب الاشتراك في القناة أولاً لتتمكن من التحميل!")
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("📢 اشترك بالقناة الآن", url=CHANNEL_URL))
+        bot.reply_to(message, "⚠️ يجب الاشتراك في القناة أولاً لتتمكن من التحميل!\n\nاضغط على الزر بالأسفل للاشتراك:", reply_markup=markup)
         return
     
     bot.reply_to(message, "📥 جاري التحميل، انتظر قليلاً...")
