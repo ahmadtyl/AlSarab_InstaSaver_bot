@@ -11,6 +11,8 @@ TOKEN = os.environ.get('BOT_TOKEN')
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
 CHANNEL_ID = os.environ.get('CHANNEL_ID')
+# سحب رابط القناة من متغيرات البيئة في Render
+CHANNEL_URL = os.environ.get('CHANNEL_URL', 'https://t.me/your_default_channel') 
 ADMIN_ID = 8469650487 
 
 bot = telebot.TeleBot(TOKEN)
@@ -53,8 +55,8 @@ def perform_broadcast(message):
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     markup = types.InlineKeyboardMarkup()
-    # تأكد من وضع رابط قناتك الحقيقي هنا في الـ url
-    markup.add(types.InlineKeyboardButton("📢 اشترك بالقناة", url="https://t.me/YOUR_CHANNEL_LINK"))
+    # استخدام المتغير الذي تم تعريفه في الأعلى
+    markup.add(types.InlineKeyboardButton("📢 اشترك بالقناة", url=CHANNEL_URL))
     markup.add(types.InlineKeyboardButton("👨‍💻 تواصل مع المطور", url="https://t.me/trweeed"))
     
     if message.text == '/start':
