@@ -6,7 +6,7 @@ from threading import Thread
 from supabase import create_client
 from telebot import types
 
-# الإعدادات - يتم سحبها من المتغيرات في Render
+# الإعدادات
 TOKEN = os.environ.get('BOT_TOKEN')
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
@@ -29,16 +29,21 @@ def is_subscribed(user_id):
 @bot.message_handler(commands=['admin'])
 def admin_panel(message):
     if message.from_user.id == ADMIN_ID:
+        markup = types.InlineKeyboardMarkup()
+        markup.add(types.InlineKeyboardButton("📊 عدد المشتركين", callback_data="count_users"))
+        markup.add(types.InlineKeyboardButton("📢 إرسال إذاعة", callback_data="broadcast"))
+        bot.reply_to(message, "🛠 **لوحة تحكم الأدمن**\nاختر الإجراء المطلوب:", reply_markup=markup, parse_mode="Markdown")
+
+@bot.callback_query_handler(func=lambda call: True)
+def callback_handler(call):
+    if call.data == "count_users":
         users = supabase.table("users").select("*").execute()
         count = len(users.data)
-        markup = types.InlineKeyboardMarkup()
-        markup.add(types.InlineKeyboardButton("📢 إرسال إذاعة", callback_data="broadcast"))
-        bot.reply_to(message, f"🛠 أهلاً أدمين، عدد المشتركين في القاعدة: {count}", reply_markup=markup)
-
-@bot.callback_query_handler(func=lambda call: call.data == "broadcast")
-def start_broadcast(call):
-    msg = bot.send_message(call.message.chat.id, "أرسل الرسالة التي تريد إذاعتها لجميع المشتركين:")
-    bot.register_next_step_handler(msg, perform_broadcast)
+        bot.answer_callback_query(call.id, f"عدد المشتركين في القاعدة هو: {count}")
+    
+    elif call.data == "broadcast":
+        msg = bot.send_message(call.message.chat.id, "أرسل الرسالة التي تريد إذاعتها للجميع:")
+        bot.register_next_step_handler(msg, perform_broadcast)
 
 def perform_broadcast(message):
     users = supabase.table("users").select("user_id").execute()
@@ -50,7 +55,7 @@ def perform_broadcast(message):
         except: pass
     bot.reply_to(message, f"✅ تم إرسال الإذاعة بنجاح إلى {count} مستخدم.")
 
-# --- الأوامر العامة والأزرار ---
+# --- الأوامر العامة ---
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     markup = types.InlineKeyboardMarkup()
@@ -87,4 +92,5 @@ def home(): return "Bot is Active"
 
 if __name__ == "__main__":
     Thread(target=lambda: app.run(host='0.0.0.0', port=8080)).start()
-    bot.infinity_polling(none_stop=True)
+    bot.remove_webhook()
+    bot.polling(non_stop=True)
