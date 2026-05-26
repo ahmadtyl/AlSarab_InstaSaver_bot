@@ -5,17 +5,17 @@ from flask import Flask
 from threading import Thread
 from supabase import create_client
 
-# الإعدادات
+# الإعدادات - يتم سحبها من متغيرات البيئة في Render
 TOKEN = os.environ.get('BOT_TOKEN')
 SUPABASE_URL = os.environ.get('SUPABASE_URL')
 SUPABASE_KEY = os.environ.get('SUPABASE_KEY')
-CHANNEL_ID = "@your_channel_username" # ضع يوزر قناتك هنا
+CHANNEL_ID = os.environ.get('CHANNEL_ID') 
 
 bot = telebot.TeleBot(TOKEN)
 supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
 app = Flask(__name__)
 
-# التحقق من الاشتراك
+# التحقق من الاشتراك في القناة
 def is_subscribed(user_id):
     try:
         member = bot.get_chat_member(CHANNEL_ID, user_id)
@@ -27,7 +27,7 @@ def is_subscribed(user_id):
 @bot.message_handler(commands=['start'])
 def start(message):
     if is_subscribed(message.from_user.id):
-        # تسجيل المستخدم في القاعدة
+        # تسجيل المستخدم في قاعدة البيانات
         try:
             supabase.table("users").insert({"user_id": message.from_user.id, "username": message.from_user.username}).execute()
         except:
@@ -45,18 +45,19 @@ def handle_link(message):
     
     bot.reply_to(message, "جاري التحميل... يرجى الانتظار.")
     try:
-        # كود التحميل البسيط
         url = message.text
+        # إعدادات التحميل
         ydl_opts = {'format': 'best', 'outtmpl': 'video.mp4'}
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
         
+        # إرسال الفيديو للمستخدم
         with open('video.mp4', 'rb') as video:
             bot.send_video(message.chat.id, video)
     except Exception as e:
         bot.reply_to(message, "حدث خطأ أثناء التحميل، تأكد من صحة الرابط.")
 
-# تشغيل البوت والويب سيرفر
+# تشغيل البوت والويب سيرفر (للحفاظ على البوت نشطاً على Render)
 @app.route('/')
 def home(): return "Bot is running"
 
