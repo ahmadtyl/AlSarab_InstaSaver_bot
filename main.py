@@ -2,6 +2,7 @@ import telebot
 import os
 import yt_dlp
 import flask
+import uuid
 from flask import Flask, request
 from supabase import create_client
 from telebot import types
@@ -83,13 +84,30 @@ def handle_link(message):
     if not is_subscribed(message.from_user.id):
         show_subscription_menu(message, "⚠️ **يجب الاشتراك في القناة أولاً لتتمكن من التحميل!**")
         return
+    
     bot.reply_to(message, "📥 **جاري المعالجة...**")
+    
+    file_id = str(uuid.uuid4())
+    filename = f"{file_id}.mp4"
+    
     try:
-        ydl_opts = {'format': 'best', 'outtmpl': 'video.mp4'}
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl: ydl.download([message.text])
-        with open('video.mp4', 'rb') as video: bot.send_video(message.chat.id, video)
+        ydl_opts = {
+            'format': 'best', 
+            'outtmpl': filename, 
+            'quiet': True
+        }
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            ydl.download([message.text])
+        
+        with open(filename, 'rb') as video:
+            bot.send_video(message.chat.id, video)
+            
     except Exception as e:
         bot.reply_to(message, f"❌ حدث خطأ أثناء التحميل: {str(e)}")
+    
+    finally:
+        if os.path.exists(filename):
+            os.remove(filename)
 
 # --- الإدارة ---
 @bot.message_handler(commands=['admin'])
